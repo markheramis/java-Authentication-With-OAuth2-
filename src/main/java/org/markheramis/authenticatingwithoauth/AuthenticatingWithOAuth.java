@@ -79,16 +79,16 @@ public class AuthenticatingWithOAuth {
      * @return the client ID
      */
     private static void getInput() {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter OAuth Client ID: ");
-        client_id = scanner.nextLine();
-        System.out.println("Please provide Authorization URL (e.g. http://localhost:8000/oauth/authorize): ");
-        System.out.print("Enter OAuth Authorization URL: ");
-        authorization_url = scanner.nextLine();
-        System.out.println("Please provide Token URL (e.g. http://localhost:8000/oauth/token): ");
-        System.out.print("Enter OAuth Token URL: ");
-        token_url = scanner.nextLine();
-        scanner.close();
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.print("Enter OAuth Client ID: ");
+            client_id = scanner.nextLine();
+            System.out.println("Please provide Authorization URL (e.g. http://localhost:8000/oauth/authorize): ");
+            System.out.print("Enter OAuth Authorization URL: ");
+            authorization_url = scanner.nextLine();
+            System.out.println("Please provide Token URL (e.g. http://localhost:8000/oauth/token): ");
+            System.out.print("Enter OAuth Token URL: ");
+            token_url = scanner.nextLine();
+        }
     }
 
     /**
