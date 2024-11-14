@@ -18,6 +18,10 @@ import java.net.InetSocketAddress;
 import java.io.IOException;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 
 /**
  * A simple OAuth authentication example using Java. This application sets up a
@@ -38,9 +42,12 @@ public class AuthenticatingWithOAuth {
     private static String authorization_url = "";
     // The token URL for the OAuth provider
     private static String token_url = "";
+    // The token scope
+    private static String scope = "";
 
-
-    public static void main(String[] args) throws Exception {
+    
+    
+    public AuthenticatingWithOAuth() throws Exception {
         getInput();
         // Generate state, code verifier, and code challenge
         String state = generateRandomString(40);
@@ -52,11 +59,10 @@ public class AuthenticatingWithOAuth {
         String authorizationUrl = authorization_url + "?client_id=" + client_id
                 + "&redirect_uri=" + REDIRECT_URI
                 + "&response_type=code"
-                + "&scope="
+                + "&scope=" + scope
                 + "&state=" + state
                 + "&code_challenge=" + codeChallenge
                 + "&code_challenge_method=S256";
-
         // Open the authorization URL in the default browser
         java.awt.Desktop.getDesktop().browse(new URI(authorizationUrl));
 
@@ -73,33 +79,41 @@ public class AuthenticatingWithOAuth {
         exchangeAuthorizationCodeForToken(client_id, authorizationCode, codeVerifier);
     }
 
+    public static void main(String[] args) throws Exception {
+        new AuthenticatingWithOAuth();
+    }
+
     /**
      * Get the client ID from the user.
      *
      * @return the client ID
      */
-    private static void getInput() {
+    private void getInput() {
         try (Scanner scanner = new Scanner(System.in)) {
             System.out.print("Enter OAuth Client ID: ");
             client_id = scanner.nextLine();
-            System.out.println("Please provide Authorization URL (e.g. http://localhost:8000/oauth/authorize): ");
+            System.out.println("Please provide Authorization URL (ex: http://localhost:8000/oauth/authorize)");
             System.out.print("Enter OAuth Authorization URL: ");
             authorization_url = scanner.nextLine();
-            System.out.println("Please provide Token URL (e.g. http://localhost:8000/oauth/token): ");
+            System.out.println("Please provide Token URL (ex: http://localhost:8000/oauth/token)");
             System.out.print("Enter OAuth Token URL: ");
             token_url = scanner.nextLine();
+            System.out.println("Please provide Token scope (ex: add-user, edit-user, delete-user) comma separated");
+            System.out.print("Enter Scope: ");
+            scope = scanner.nextLine();
         }
     }
 
     /**
      * Generate a code verifier.
      *
-     * This method generates a code verifier by creating a random sequence of bytes,
-     * encoding them using URL-safe Base64 encoding, and removing any padding characters.
+     * This method generates a code verifier by creating a random sequence of
+     * bytes, encoding them using URL-safe Base64 encoding, and removing any
+     * padding characters.
      *
      * @return a random URL-safe string
      */
-    private static String generateCodeVerifier() {
+    private String generateCodeVerifier() {
         byte[] randomBytes = new byte[32];
         new Random().nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
@@ -109,16 +123,15 @@ public class AuthenticatingWithOAuth {
      * Generate code challenge from code verifier.
      *
      * This method takes a code verifier string and generates a code challenge
-     * using the following steps:
-     * 1. Hash the code verifier using SHA-256.
-     * 2. Encode the resulting hash using URL-safe Base64 encoding.
-     * 3. Replace '+' with '-' and '/' with '_' to ensure the string is URL-safe.
+     * using the following steps: 1. Hash the code verifier using SHA-256. 2.
+     * Encode the resulting hash using URL-safe Base64 encoding. 3. Replace '+'
+     * with '-' and '/' with '_' to ensure the string is URL-safe.
      *
      * @param codeVerifier a code verifier String
      * @return URL-safe Base64 encoded String
      * @throws NoSuchAlgorithmException
      */
-    private static String generateCodeChallenge(String codeVerifier) throws NoSuchAlgorithmException {
+    private String generateCodeChallenge(String codeVerifier) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash)
@@ -128,15 +141,15 @@ public class AuthenticatingWithOAuth {
     /**
      * Generate a random string for state parameter.
      *
-     * This method generates a random string of the specified length using
-     * a combination of uppercase letters, lowercase letters, and digits.
-     * It uses a `StringBuilder` to construct the string and a `Random` 
-     * instance to select random characters from the defined character set.
+     * This method generates a random string of the specified length using a
+     * combination of uppercase letters, lowercase letters, and digits. It uses
+     * a `StringBuilder` to construct the string and a `Random` instance to
+     * select random characters from the defined character set.
      *
      * @param length the length of the String to generate
      * @return the generated String
      */
-    private static String generateRandomString(int length) {
+    private String generateRandomString(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         Random random = new Random();
         StringBuilder sb = new StringBuilder(length);
@@ -157,13 +170,14 @@ public class AuthenticatingWithOAuth {
      * @param codeVerifier the code verifier used in the PKCE flow
      * @throws Exception if an error occurs during the request
      */
-    private static void exchangeAuthorizationCodeForToken(String client_id, String code, String codeVerifier) throws Exception {
+    private void exchangeAuthorizationCodeForToken(String client_id, String code, String codeVerifier) throws Exception {
         // Create a map to hold the form data parameters
         Map<Object, Object> formData = new HashMap<>();
         formData.put("grant_type", "authorization_code");
         formData.put("client_id", client_id);
         formData.put("redirect_uri", REDIRECT_URI);
         formData.put("code_verifier", codeVerifier);
+        formData.put("scope", scope);
         formData.put("code", code);
 
         // Build the HTTP request with the form data
@@ -175,7 +189,7 @@ public class AuthenticatingWithOAuth {
 
         // Send the HTTP request and get the response
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        
+
         // Print the access token response
         System.out.println("Access Token Response: " + response.body());
     }
@@ -186,7 +200,7 @@ public class AuthenticatingWithOAuth {
      * @param data
      * @return
      */
-    private static HttpRequest.BodyPublisher buildFormData(Map<Object, Object> data) {
+    private HttpRequest.BodyPublisher buildFormData(Map<Object, Object> data) {
         StringBuilder builder = new StringBuilder();
         for (Map.Entry<Object, Object> entry : data.entrySet()) {
             if (builder.length() > 0) {
@@ -200,26 +214,28 @@ public class AuthenticatingWithOAuth {
     }
 
     /**
-     * Start a simple HTTP server to capture the OAuth callback.
-     * This server listens on port 3000 and waits for the OAuth authorization server
-     * to redirect the user back to our application with the authorization code.
+     * Start a simple HTTP server to capture the OAuth callback. This server
+     * listens on port 3000 and waits for the OAuth authorization server to
+     * redirect the user back to our application with the authorization code.
      *
      * @return a map containing the query parameters from the callback URL
-     * @throws IOException if an error occurs while creating or starting the server
+     * @throws IOException if an error occurs while creating or starting the
+     * server
      */
-    private static Map<String, String> waitForCallback() throws IOException {
+    private Map<String, String> waitForCallback() throws IOException {
         // Create an HTTP server that listens on port 3000
         HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
         // Map to store the query parameters from the callback URL
         Map<String, String> queryParams = new HashMap<>();
         // CountDownLatch to wait for the callback request to be handled
         CountDownLatch latch = new CountDownLatch(1);
-        
+
         /**
-         * Handle the HTTP request and extract the query parameters.
-         * This context handles requests to the /auth/callback endpoint.
+         * Handle the HTTP request and extract the query parameters. This
+         * context handles requests to the /auth/callback endpoint.
          *
-         * @param exchange the HTTP exchange object containing the request and response
+         * @param exchange the HTTP exchange object containing the request and
+         * response
          * @throws IOException if an error occurs while handling the request
          */
         server.createContext("/auth/callback", (HttpExchange exchange) -> {
@@ -238,12 +254,16 @@ public class AuthenticatingWithOAuth {
                 }
             }
             // Send a response to the client indicating that the authorization was received
-            String response = "<html><body>Authorization received. This window will close automatically.<script>window.close();</script></body></html>";
+            String response = getView("authorization-received.html");
             exchange.sendResponseHeaders(200, response.length());
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(response.getBytes());
+            }
+
             // Signal that the request has been handled by counting down the latch
             latch.countDown();
         });
-        
+
         // Start the server
         server.start();
         System.out.println("Server started at http://localhost:3000/auth/callback. Waiting for the callback...");
@@ -254,12 +274,24 @@ public class AuthenticatingWithOAuth {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         // Stop the server after handling the callback request
         server.stop(0);
         System.out.println("Server has stopped.");
-        
+
         // Return the query parameters from the callback URL
         return queryParams;
+    }
+    
+    private String getView(String viewFile) throws IOException {
+        String html = "";
+        String line = "";
+        InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(viewFile);
+        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+        BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+        while ((line = bufferedReader.readLine()) != null) {
+            html += line;
+        }
+        return html;
     }
 }
